@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import re
-
+import operator
 import typing as t
 
-import rich
+from datatypes import PdfNumberedFile, PdfNumberedPage
 
 import ocr
 
@@ -14,26 +14,28 @@ if t.TYPE_CHECKING:
 NUMBERED_QUESTION_TEXT_REGEX = re.compile(r"^(\d+)[.)]$")
 
 
-def parse_numbered_questions(pdf_file: PdfFile) -> list[PdfWord | PdfImage]:
-    numbered_questions: list[PdfWord | PdfImage] = []
+def parse_numbered_pdf(pdf_file: PdfFile) -> PdfNumberedFile:
+    numbered_pages: list[PdfNumberedPage] = []
 
     for page in pdf_file.pages:
-        page_numbered_questions = parse_numbered_questions_from_page(page)
-        numbered_questions.extend(page_numbered_questions)
+        numbered_page = parse_numbered_page(page)
+        numbered_pages.append(numbered_page)
 
-    return numbered_questions
-
-
-def parse_numbered_questions_from_page(page: PdfPage) -> list[PdfWord | PdfImage]:
-    numbered_questions: list[PdfWord | PdfImage] = []
-
-    numbered_questions.extend(find_numbered_questions_from_text(page.text))
-    numbered_questions.extend(find_numbered_questions_from_images(page.images))
-
-    return numbered_questions
+    numbered_file = PdfNumberedFile(pages=numbered_pages)
+    return numbered_file
 
 
-def find_numbered_questions_from_text(text: PdfText) -> PdfText:
+def parse_numbered_page(page: PdfPage) -> PdfNumberedPage:
+    pdf_numbered_text = filter_numbered_text(page.text)
+    pdf_numbered_images = filter_numbered_images(page.images)
+
+    sort_by_bounding_box_top(pdf_numbered_text)
+    sort_by_bounding_box_top(pdf_numbered_images)
+
+    return PdfNumberedPage(text=pdf_numbered_text, images=pdf_numbered_images)
+
+
+def filter_numbered_text(text: PdfText) -> PdfText:
     matching_words: list[PdfWord] = []
 
     for word in text:
@@ -46,7 +48,7 @@ def find_numbered_questions_from_text(text: PdfText) -> PdfText:
     return matching_words
 
 
-def find_numbered_questions_from_images(images: PdfImages) -> PdfImages:
+def filter_numbered_images(images: PdfImages) -> PdfImages:
     matching_images: list[PdfImage] = []
 
     for image in images:
@@ -64,3 +66,8 @@ def find_numbered_questions_from_images(images: PdfImages) -> PdfImages:
             break
 
     return matching_images
+
+
+def sort_by_bounding_box_top(elements: list[PdfImage] | list[PdfWord] | list[PdfImage | PdfWord]) -> None:
+    key = operator.attrgetter("bounding_box.y0")
+    elements.sort(key=key)

@@ -8,7 +8,7 @@ import fitz as pymupdf
 from PIL import Image
 
 from datatypes import PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage, MuWord
-from numbered_question_finder import parse_numbered_questions
+from numbered_question_finder import parse_numbered_pdf
 
 
 def image_name_as_int(image_name: str) -> int:
@@ -109,9 +109,14 @@ def main(pdf_path: pathlib.Path) -> None:
     mu_pdf = pymupdf.Document(pdf_path)
 
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
-    numbered_questions = parse_numbered_questions(pdf_file)
 
-    rich.print(numbered_questions)
+    # TODO: some kind of computation to figure out if a text el / image el actually refer to the same question
+    # height can be used imaginatively, in that case the easiest solution would be to remove the image from the numbered pdf
+    # as the text that is overlaying the image will be more important.
+
+    numbered_pdf_file = parse_numbered_pdf(pdf_file)
+
+    rich.print(numbered_pdf_file)
 
 
 if __name__ == "__main__":
@@ -124,7 +129,5 @@ if __name__ == "__main__":
 
     pdf_paths = list(in_dir.glob("*.pdf"))
     pdf_path = pdf_paths[0]
-
-    #
 
     main(pdf_path)

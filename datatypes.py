@@ -56,9 +56,7 @@ class PdfImage(t.NamedTuple):
     stream: pikepdf.Stream
     bounding_box: pymupdf.IRect
 
-    @property
-    def top(self) -> int:
-        return self.bounding_box.y0
+  
 
     def as_pil_image(self) -> Image.Image:
         return pikepdf.PdfImage(self.stream).as_pil_image()
@@ -72,9 +70,13 @@ class PdfWord(t.NamedTuple):
     word_num: int
 
 
+PdfText: t.TypeAlias = "list[PdfWord]"
+PdfImages: t.TypeAlias = "list[PdfImage]"
+
+
 class PdfPage(t.NamedTuple):
-    text: list[PdfWord]
-    images: list[PdfImage]
+    text: PdfText
+    images: PdfImages
 
     @property
     def image_streams(self) -> t.Generator[pikepdf.Stream, None, None]:
@@ -86,5 +88,12 @@ class PdfFile(t.NamedTuple):
     pages: list[PdfPage]
 
 
-PdfText: t.TypeAlias = "list[PdfWord]"
-PdfImages: t.TypeAlias = "list[PdfImage]"
+class PdfNumberedPage(PdfPage):
+    @property
+    def elements(self) -> t.Generator[t.Union[PdfImage, PdfWord], None, None]:
+        yield from self.images
+        yield from self.text
+
+
+class PdfNumberedFile(t.NamedTuple):
+    pages: list[PdfNumberedPage]
