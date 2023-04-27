@@ -9,6 +9,29 @@ if t.TYPE_CHECKING:
     import fitz as pymupdf
     from PIL import Image
 
+# https://pymupdf.readthedocs.io/en/latest/page.html#Page.get_image_info
+MuImage = t.TypedDict(
+    "MuImage",
+    {
+        "number": int,
+        "bbox": tuple[int, int, int, int],
+        "transform": tuple[int, int, int, int],
+        "width": int,
+        "height": int,
+        "colorspace": int,
+        "cs-name": str,
+        "xres": int,
+        "yres": int,
+        "bpc": int,
+        "size": int,
+        "digest": bytes,
+        "xref": int,
+    },
+)
+
+# (x0, y0, x1, y1, "word", block_no, line_no, word_no)
+# https://pymupdf.readthedocs.io/en/latest/textpage.html#TextPage.extractWORDS
+MuWord: t.TypeAlias = "tuple[float, float, float, float, str, int, int, int]"
 
 class PdfImage(t.NamedTuple):
     id: int
@@ -23,8 +46,8 @@ class PdfImage(t.NamedTuple):
         return pikepdf.PdfImage(self.stream).as_pil_image()
 
 
-class PdfText(t.NamedTuple):
-    text: str
+class PdfWord(t.NamedTuple):
+    word: str
     bounding_box: pymupdf.IRect
     block_num: int
     line_num: int
@@ -32,7 +55,7 @@ class PdfText(t.NamedTuple):
 
 
 class PdfPage(t.NamedTuple):
-    text: list[PdfText]
+    text: list[PdfWord]
     images: list[PdfImage]
 
     @property
@@ -43,3 +66,7 @@ class PdfPage(t.NamedTuple):
 
 class PdfFile(t.NamedTuple):
     pages: list[PdfPage]
+
+
+PdfText: t.TypeAlias = "list[PdfWord]"
+PdfImages: t.TypeAlias = "list[PdfImage]"
