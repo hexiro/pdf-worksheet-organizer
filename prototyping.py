@@ -1,3 +1,4 @@
+import pathlib
 import pikepdf
 import fitz as pymupdf
 
@@ -66,3 +67,30 @@ def draw_outlines_around_images(page: pymupdf.Page, image_name_to_dimensions: di
         draw.rectangle(four_corners, outline="red")
 
     img.show()
+
+
+def extract_images(page: pikepdf.Page) -> None:
+    for image_name, image in page.images.items():
+        pdf_image = pikepdf.PdfImage(image)
+        pil_image = pdf_image.as_pil_image()
+
+        image_name = image_name.removeprefix("/")
+
+        pil_image.save(out_dir / f"{image_name}.png")
+
+
+if __name__ == "__main__":
+    file = pathlib.Path(__file__)
+    in_dir = file.parent / "in"
+    out_dir = file.parent / "out"
+
+    in_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(exist_ok=True)
+
+    pdf_files = list(in_dir.glob("*.pdf"))
+    pdf_file = pdf_files[0]
+
+    pdf = pikepdf.open(pdf_file)
+    page_one = pdf.pages[0]
+
+    extract_images(page_one)

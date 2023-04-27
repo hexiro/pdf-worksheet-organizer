@@ -33,6 +33,24 @@ MuImage = t.TypedDict(
 # https://pymupdf.readthedocs.io/en/latest/textpage.html#TextPage.extractWORDS
 MuWord: t.TypeAlias = "tuple[float, float, float, float, str, int, int, int]"
 
+
+# output of pytesseract.image_to_data w/ output_type = Output.DICT
+# all parallel lists
+class OcrImageData(t.TypedDict):
+    level: list[int]
+    page_num: list[int]
+    block_num: list[int]
+    par_num: list[int]
+    line_num: list[int]
+    word_num: list[int]
+    left: list[int]
+    top: list[int]
+    width: list[int]
+    height: list[int]
+    conf: list[int]  # [0-100]
+    text: list[str]
+
+
 class PdfImage(t.NamedTuple):
     id: int
     stream: pikepdf.Stream

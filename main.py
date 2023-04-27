@@ -8,12 +8,7 @@ import fitz as pymupdf
 from PIL import Image
 
 from datatypes import PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage, MuWord
-
-
-def ocr(image: Image.Image) -> None:
-    import pytesseract
-
-    return pytesseract.image_to_string(image)
+from numbered_question_finder import parse_numbered_questions
 
 
 def image_name_as_int(image_name: str) -> int:
@@ -103,6 +98,7 @@ def parse_pdf(pike_pdf: pikepdf.Pdf, mu_pdf: pymupdf.Document) -> PdfFile:
     for page_num in range(page_count):
         page = parse_page(page_num, pike_pdf, mu_pdf)
         pages.append(page)
+        break
 
     pdf_file = PdfFile(pages=pages)
     return pdf_file
@@ -113,7 +109,9 @@ def main(pdf_path: pathlib.Path) -> None:
     mu_pdf = pymupdf.Document(pdf_path)
 
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
-    rich.print(pdf_file)
+    numbered_questions = parse_numbered_questions(pdf_file)
+
+    rich.print(numbered_questions)
 
 
 if __name__ == "__main__":
@@ -124,10 +122,9 @@ if __name__ == "__main__":
     in_dir.mkdir(exist_ok=True)
     out_dir.mkdir(exist_ok=True)
 
-    pdf_files = list(in_dir.glob("*.pdf"))
-    pdf_file = pdf_files[0]
+    pdf_paths = list(in_dir.glob("*.pdf"))
+    pdf_path = pdf_paths[0]
 
-    # TODO: keep working on pdf_file text logic
-    # TODO: regex for text
+    #
 
-    main(pdf_file)
+    main(pdf_path)
