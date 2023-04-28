@@ -109,11 +109,6 @@ def main(pdf_path: pathlib.Path) -> None:
     mu_pdf = pymupdf.Document(pdf_path)
 
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
-
-    # TODO: some kind of computation to figure out if a text el / image el actually refer to the same question
-    # height can be used imaginatively, in that case the easiest solution would be to remove the image from the numbered pdf
-    # as the text that is overlaying the image will be more important.
-
     numbered_pdf_file = parse_numbered_pdf(pdf_file)
 
     rich.print(numbered_pdf_file)

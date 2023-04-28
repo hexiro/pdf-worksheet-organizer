@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 
 
 import typing as t
@@ -51,18 +52,18 @@ class OcrImageData(t.TypedDict):
     text: list[str]
 
 
-class PdfImage(t.NamedTuple):
+@dataclass(frozen=True)
+class PdfImage:
     id: int
     stream: pikepdf.Stream
     bounding_box: pymupdf.IRect
-
-  
 
     def as_pil_image(self) -> Image.Image:
         return pikepdf.PdfImage(self.stream).as_pil_image()
 
 
-class PdfWord(t.NamedTuple):
+@dataclass(frozen=True)
+class PdfWord:
     word: str
     bounding_box: pymupdf.IRect
     block_num: int
@@ -88,11 +89,21 @@ class PdfFile(t.NamedTuple):
     pages: list[PdfPage]
 
 
-class PdfNumberedPage(PdfPage):
-    @property
-    def elements(self) -> t.Generator[t.Union[PdfImage, PdfWord], None, None]:
-        yield from self.images
-        yield from self.text
+@dataclass(frozen=True)
+class PdfNumberedImage(PdfImage):
+    word: str
+    number_bounding_box: pymupdf.IRect
+
+
+# just to differentiable the two
+@dataclass(frozen=True)
+class PdfNumberedWord(PdfWord):
+    ...
+
+
+# bounding_box in PdfImage now refers to the bounding box of the number instead of the whole image
+class PdfNumberedPage(t.NamedTuple):
+    elements: list[PdfNumberedWord | PdfNumberedImage]
 
 
 class PdfNumberedFile(t.NamedTuple):
