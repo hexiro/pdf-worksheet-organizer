@@ -37,7 +37,7 @@ def parse_numbered_elements(
     pdf_numbered_els: list[PdfNumberedWord | PdfNumberedImage] = []
     pdf_numbered_els.extend(pdf_numbered_text)
 
-    text_top_values: set[int] = {word.bounding_box.y0 for word in pdf_numbered_text}
+    text_top_values: set[float] = {word.bounding_box.y0 for word in pdf_numbered_text}
 
     for image in pdf_numbered_images:
         image_top = image.bounding_box.y0
@@ -75,6 +75,7 @@ def filter_numbered_text(text: PdfText) -> list[PdfNumberedWord]:
             font=word.font,
             font_size=word.font_size,
             bounding_box=word.bounding_box,
+            origin=word.origin,
             block_num=word.block_num,
             line_num=word.line_num,
             word_num=word.word_num,

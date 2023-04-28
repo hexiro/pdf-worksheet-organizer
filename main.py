@@ -1,14 +1,14 @@
-import rich
 import pathlib
 
 import typing as t
 
 import pikepdf
 import fitz as pymupdf
-from PIL import Image
 
 from datatypes import MuTextDict, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
 from numbered_question_finder import parse_numbered_pdf
+from paths import PDF_PATH
+from renumber import renumber_pdf
 
 
 def image_name_as_int(image_name: str) -> int:
@@ -31,15 +31,23 @@ def parse_pdf_text(mu_page: pymupdf.Page) -> PdfText:
             for word_num, word in enumerate(line["spans"]):
 
                 text = word["text"].strip()
+
+                # text is probably just a space that got stripped out
+                # -- not important to functionality so just skip
+                if not text:
+                    continue
+
                 font = word["font"]
                 font_size = word["size"]
-                bounding_box = pymupdf.IRect(*word["bbox"])
+                bounding_box = pymupdf.Rect(*word["bbox"])
+                origin = pymupdf.Point(*word["origin"])
 
                 pdf_word = PdfWord(
                     text=text,
                     font=font,
                     font_size=font_size,
                     bounding_box=bounding_box,
+                    origin=origin,
                     block_num=block_num,
                     line_num=line_num,
                     word_num=word_num,
@@ -75,7 +83,7 @@ def parse_pdf_images(
         pdf_image = PdfImage(
             id=image_id,
             stream=image_stream,
-            bounding_box=pymupdf.IRect(image_dimensions),
+            bounding_box=pymupdf.Rect(image_dimensions),
         )
 
         pdf_images.append(pdf_image)
@@ -119,19 +127,9 @@ def main(pdf_path: pathlib.Path) -> None:
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
     numbered_pdf_file = parse_numbered_pdf(pdf_file)
 
-    rich.print(numbered_pdf_file)
-    # renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file)
+    # rich.print(numbered_pdf_file)
+    renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file)
 
 
 if __name__ == "__main__":
-    file = pathlib.Path(__file__)
-    in_dir = file.parent / "in"
-    out_dir = file.parent / "out"
-
-    in_dir.mkdir(exist_ok=True)
-    out_dir.mkdir(exist_ok=True)
-
-    pdf_paths = list(in_dir.glob("*.pdf"))
-    pdf_path = pdf_paths[0]
-
-    main(pdf_path)
+    main(PDF_PATH)

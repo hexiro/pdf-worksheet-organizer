@@ -4,6 +4,8 @@ import fitz as pymupdf
 
 from PIL import Image, ImageDraw
 
+from paths import OUT_DIR, PDF_PATH
+
 
 def prove_editing_pdf_images_works(
     page: pikepdf.Page,
@@ -76,21 +78,11 @@ def extract_images(page: pikepdf.Page) -> None:
 
         image_name = image_name.removeprefix("/")
 
-        pil_image.save(out_dir / f"{image_name}.png")
+        pil_image.save(OUT_DIR / f"{image_name}.png")
 
 
 if __name__ == "__main__":
-    file = pathlib.Path(__file__)
-    in_dir = file.parent / "in"
-    out_dir = file.parent / "out"
-
-    in_dir.mkdir(exist_ok=True)
-    out_dir.mkdir(exist_ok=True)
-
-    pdf_files = list(in_dir.glob("*.pdf"))
-    pdf_file = pdf_files[0]
-
-    pdf = pikepdf.open(pdf_file)
+    pdf = pikepdf.open(PDF_PATH)
     page_one = pdf.pages[0]
 
     extract_images(page_one)

@@ -7,6 +7,7 @@ import typing as t
 import pikepdf
 
 if t.TYPE_CHECKING:
+    import io
     import fitz as pymupdf
     from PIL import Image
 
@@ -68,6 +69,10 @@ class MuTextDict(t.TypedDict):
     blocks: list[MuTextBlock]  # list of block dictionaries
 
 
+PdfText: t.TypeAlias = "list[PdfWord]"
+PdfImages: t.TypeAlias = "list[PdfImage]"
+FontBuffers: t.TypeAlias = "dict[str, io.BytesIO | None]"
+
 # output of pytesseract.image_to_data w/ output_type = Output.DICT
 # all parallel lists
 class OcrImageData(t.TypedDict):
@@ -89,7 +94,7 @@ class OcrImageData(t.TypedDict):
 class PdfImage:
     id: int
     stream: pikepdf.Stream
-    bounding_box: pymupdf.IRect
+    bounding_box: pymupdf.Rect
 
     def as_pil_image(self) -> Image.Image:
         return pikepdf.PdfImage(self.stream).as_pil_image()
@@ -100,14 +105,11 @@ class PdfWord:
     text: str
     font: str
     font_size: float
-    bounding_box: pymupdf.IRect
+    bounding_box: pymupdf.Rect
+    origin: pymupdf.Point
     block_num: int
     line_num: int
     word_num: int
-
-
-PdfText: t.TypeAlias = "list[PdfWord]"
-PdfImages: t.TypeAlias = "list[PdfImage]"
 
 
 class PdfPage(t.NamedTuple):
