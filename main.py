@@ -7,7 +7,7 @@ import pikepdf
 import fitz as pymupdf
 from PIL import Image
 
-from datatypes import PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage, MuWord
+from datatypes import MuTextDict, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
 from numbered_question_finder import parse_numbered_pdf
 
 
@@ -20,23 +20,31 @@ def image_name_as_int(image_name: str) -> int:
 
 
 def parse_pdf_text(mu_page: pymupdf.Page) -> PdfText:
-    # (x0, y0, x1, y1, "word", block_no, line_no, word_no)
-    text_data: list[MuWord] = mu_page.get_textpage().extractWORDS()
+    text_page: pymupdf.TextPage = mu_page.get_textpage()
+    text_dict: MuTextDict = text_page.extractDICT()  # type: ignore
+
     pdf_text: PdfText = []
 
-    for word_data in text_data:
-        bounding_box = pymupdf.IRect(*word_data[:4])
-        word = word_data[4]
-        block_num, line_num, word_num = word_data[5:8]
+    for block in text_dict["blocks"]:
+        block_num = block["number"]
+        for line_num, line in enumerate(block["lines"]):
+            for word_num, word in enumerate(line["spans"]):
 
-        pdf_word = PdfWord(
-            word=word,
-            bounding_box=bounding_box,
-            block_num=block_num,
-            line_num=line_num,
-            word_num=word_num,
-        )
-        pdf_text.append(pdf_word)
+                text = word["text"].strip()
+                font = word["font"]
+                font_size = word["size"]
+                bounding_box = pymupdf.IRect(*word["bbox"])
+
+                pdf_word = PdfWord(
+                    text=text,
+                    font=font,
+                    font_size=font_size,
+                    bounding_box=bounding_box,
+                    block_num=block_num,
+                    line_num=line_num,
+                    word_num=word_num,
+                )
+                pdf_text.append(pdf_word)
 
     return pdf_text
 
@@ -112,6 +120,7 @@ def main(pdf_path: pathlib.Path) -> None:
     numbered_pdf_file = parse_numbered_pdf(pdf_file)
 
     rich.print(numbered_pdf_file)
+    # renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file)
 
 
 if __name__ == "__main__":

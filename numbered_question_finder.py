@@ -65,13 +65,15 @@ def filter_numbered_text(text: PdfText) -> list[PdfNumberedWord]:
     matching_words: list[PdfNumberedWord] = []
 
     for word in text:
-        word_text = word.word.strip()
-        match = NUMBERED_QUESTION_TEXT_REGEX.search(word_text)
+        
+        match = NUMBERED_QUESTION_TEXT_REGEX.search(word.text)
         if not match:
             continue
 
         new_word = PdfNumberedWord(
-            word=word_text,
+            text=word.text,
+            font=word.font,
+            font_size=word.font_size,
             bounding_box=word.bounding_box,
             block_num=word.block_num,
             line_num=word.line_num,

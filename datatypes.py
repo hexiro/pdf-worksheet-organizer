@@ -30,9 +30,42 @@ MuImage = t.TypedDict(
     },
 )
 
-# (x0, y0, x1, y1, "word", block_no, line_no, word_no)
-# https://pymupdf.readthedocs.io/en/latest/textpage.html#TextPage.extractWORDS
-MuWord: t.TypeAlias = "tuple[float, float, float, float, str, int, int, int]"
+
+# https://pymupdf.readthedocs.io/en/latest/textpage.html#span-dictionary
+class MuTextSpan(t.TypedDict):
+    bbox: tuple[float, float, float, float]  # span rectangle, type: rect_like
+    origin: tuple[float, float]  # the first character’s origin, type: point_like
+    font: str  # font name
+    ascender: float  # ascender of the font
+    descender: float  # descender of the font
+    size: float  # font size
+    flags: int  # font characteristics
+    color: int  # text color in sRGB format
+    text: str  #  text
+
+
+# https://pymupdf.readthedocs.io/en/latest/textpage.html#line-dictionary
+class MuTextLine(t.TypedDict):
+    bbox: list[float]  # line rectangle, type: rect_like
+    wmode: int  # writing mode: 0 = horizontal, 1 = vertical
+    # writing direction, type: point_like, unit vector dir = (cosine, sine) of the angle, which the text has relative to the x-axis
+    dir: tuple[float, float]
+    spans: list[MuTextSpan]  # list of span dictionaries
+
+
+# https://pymupdf.readthedocs.io/en/latest/textpage.html#block-dictionaries
+class MuTextBlock(t.TypedDict):
+    number: int  # block count
+    type: t.Literal[0]  # always 0 in this case, 0 = text, 1 = image
+    bbox: tuple[float, float, float, float]  # image bbox on page, type: rect_like
+    lines: list[MuTextLine]  # list of text line dictionaries
+
+
+# https://pymupdf.readthedocs.io/en/latest/textpage.html#structure-of-dictionary-outputs
+class MuTextDict(t.TypedDict):
+    width: float  # width of the clip rectangle (float)
+    height: float  # height of the clip rectangle (float)
+    blocks: list[MuTextBlock]  # list of block dictionaries
 
 
 # output of pytesseract.image_to_data w/ output_type = Output.DICT
@@ -64,7 +97,9 @@ class PdfImage:
 
 @dataclass(frozen=True)
 class PdfWord:
-    word: str
+    text: str
+    font: str
+    font_size: float
     bounding_box: pymupdf.IRect
     block_num: int
     line_num: int
