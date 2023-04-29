@@ -3,6 +3,7 @@ import pathlib
 
 import pikepdf
 import fitz as pymupdf
+import rich
 
 from datatypes import MuTextDict, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
 from numbered_question_finder import parse_numbered_pdf
@@ -26,16 +27,13 @@ def parse_pdf_text(mu_page: pymupdf.Page) -> PdfText:
     pdf_text: PdfText = []
 
     for block in text_dict["blocks"]:
-        block_num = block["number"]
-        for line_num, line in enumerate(block["lines"]):
-            for word_num, word in enumerate(line["spans"]):
+        for line in block["lines"]:
+            for word in line["spans"]:
                 text = word["text"].strip()
-
                 # text is probably just a space that got stripped out
                 # -- not important to functionality so just skip
                 if not text:
                     continue
-
                 font = word["font"]
                 font_size = word["size"]
                 bounding_box = pymupdf.Rect(*word["bbox"])
@@ -47,9 +45,6 @@ def parse_pdf_text(mu_page: pymupdf.Page) -> PdfText:
                     font_size=font_size,
                     bounding_box=bounding_box,
                     origin=origin,
-                    block_num=block_num,
-                    line_num=line_num,
-                    word_num=word_num,
                 )
                 pdf_text.append(pdf_word)
 

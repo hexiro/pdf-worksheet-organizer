@@ -137,7 +137,10 @@ def renumber_text_element(
     text_writer = pymupdf.TextWriter(mu_page.rect)
 
     font = parse_font_from_fonts(numbered_pdf_word.font, fonts)
-    text = QUESTION_NUMBER_FORMAT.format(question_number)
+    
+    match = numbered_pdf_word.match
+    question_number_text = QUESTION_NUMBER_FORMAT.format(question_number)
+    text = match.string.replace(match.group(), question_number_text)
 
     mu_page.add_redact_annot(quad=numbered_pdf_word.bounding_box)
     mu_page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_NONE)  # type: ignore

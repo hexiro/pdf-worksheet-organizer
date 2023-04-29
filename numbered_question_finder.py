@@ -5,7 +5,6 @@ import operator
 import typing as t
 
 import fitz as pymupdf
-from PIL import ImageDraw
 import rich
 
 
@@ -14,9 +13,9 @@ from datatypes import PdfNumberedFile, PdfNumberedPage, PdfNumberedImage, PdfNum
 
 
 if t.TYPE_CHECKING:
-    from datatypes import PdfFile, PdfPage, PdfWord, PdfText, PdfImages
+    from datatypes import PdfFile, PdfPage, PdfText, PdfImages
 
-NUMBERED_QUESTION_TEXT_REGEX = re.compile(r"^(\d+)[.)]$")
+NUMBERED_QUESTION_TEXT_REGEX = re.compile(r"(\b\d+[.)])(?=\s|$)")
 
 
 def parse_numbered_pdf(pdf_file: PdfFile) -> PdfNumberedFile:
@@ -65,7 +64,6 @@ def filter_numbered_text(text: PdfText) -> list[PdfNumberedWord]:
     matching_words: list[PdfNumberedWord] = []
 
     for word in text:
-        
         match = NUMBERED_QUESTION_TEXT_REGEX.search(word.text)
         if not match:
             continue
@@ -76,9 +74,7 @@ def filter_numbered_text(text: PdfText) -> list[PdfNumberedWord]:
             font_size=word.font_size,
             bounding_box=word.bounding_box,
             origin=word.origin,
-            block_num=word.block_num,
-            line_num=word.line_num,
-            word_num=word.word_num,
+            match=match,
         )
 
         matching_words.append(new_word)
@@ -100,7 +96,6 @@ def filter_numbered_images(images: PdfImages) -> list[PdfNumberedImage]:
             match = NUMBERED_QUESTION_TEXT_REGEX.search(word)
             if not match:
                 continue
-
             left = image_data["left"][index]
             top = image_data["top"][index]
             right = image_data["width"][index] + left

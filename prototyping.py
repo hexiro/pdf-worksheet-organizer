@@ -110,6 +110,17 @@ def test_open_with_pike_pdf() -> None:
         rich.print("-" * 80)
 
 
+def extract_page(pike_pdf: pikepdf.Pdf, page_num: int) -> None:
+    page = pike_pdf.pages[page_num]
+
+    out = pikepdf.Pdf.new()
+    out.pages.append(page)
+
+    out.save(OUT_DIR / f"page-{page_num}.pdf")
+
+
 if __name__ == "__main__":
     pike_pdf = pikepdf.open(PDF_PATH)
     mu_pdf = pymupdf.Document(PDF_PATH)
+
+    extract_page(pike_pdf, 1)

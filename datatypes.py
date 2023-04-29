@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import re
 
 
 import typing as t
@@ -120,7 +121,7 @@ class PdfFont(t.NamedTuple):
             font_encoding = self.encoding
         try:
             return ImageFont.truetype(font=self.buffer.getvalue(), size=font_size, encoding=font_encoding)
-        except UnicodeDecodeError: 
+        except UnicodeDecodeError:
             return None
 
     def as_pymupdf_font(self) -> pymupdf.Font:
@@ -144,9 +145,6 @@ class PdfWord:
     font_size: float
     bounding_box: pymupdf.Rect
     origin: pymupdf.Point
-    block_num: int
-    line_num: int
-    word_num: int
 
 
 class PdfPage(t.NamedTuple):
@@ -169,10 +167,9 @@ class PdfNumberedImage(PdfImage):
     number_bounding_box: pymupdf.Rect
 
 
-# just to differentiable the two
 @dataclass(frozen=True)
 class PdfNumberedWord(PdfWord):
-    ...
+    match: re.Match[str]
 
 
 # bounding_box in PdfImage now refers to the bounding box of the number instead of the whole image
