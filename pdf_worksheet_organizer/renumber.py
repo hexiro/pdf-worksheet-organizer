@@ -7,6 +7,7 @@ import contextlib
 import pikepdf
 import fitz as pymupdf
 from PIL import ImageDraw, ImageFont
+import rich
 
 from pdf_worksheet_organizer.datatypes import (
     PdfFile,
@@ -17,7 +18,7 @@ from pdf_worksheet_organizer.datatypes import (
     PdfPage,
     PdfNumberedPage,
 )
-from pdf_worksheet_organizer.paths import OUT_DIR
+from pdf_worksheet_organizer.paths import OUT_DIR, OUT_FILE, RELATIVE_OUT_FILE
 
 
 QUESTION_NUMBER_FORMAT = "{0})"
@@ -57,9 +58,10 @@ def renumber_pdf(
             new_pike_pdf, new_mu_pdf = merge_pdfs(new_pike_pdf, new_mu_pdf, last_type)
             question_number += 1
 
-    new_mu_pdf.save(OUT_DIR / "out.pdf")
-    # new_pike_pdf.save(OUT_DIR / "replaced2.pdf")
-
+    rich.print(
+        f"[bold][green]Saving renumbered PDF to [white]'{RELATIVE_OUT_FILE}'[/white] [white]([green]{question_number - 1} questions renumbered[/green])[/white][/bold][/green]"
+    )
+    new_mu_pdf.save(OUT_FILE)
 
 def merge_pdfs(
     pike_pdf: pikepdf.Pdf, mu_pdf: pymupdf.Document, last_type: t.Type[PdfNumberedWord] | t.Type[PdfNumberedImage]

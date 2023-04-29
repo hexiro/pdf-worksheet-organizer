@@ -4,7 +4,7 @@ import pytesseract
 
 import typing as t
 
-from datatypes import OcrImageData
+from pdf_worksheet_organizer.datatypes import OcrImageData
 
 if t.TYPE_CHECKING:
     from datatypes import PdfImage

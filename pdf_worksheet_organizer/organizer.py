@@ -5,7 +5,7 @@ import pikepdf
 import fitz as pymupdf
 
 from pdf_worksheet_organizer.datatypes import MuTextDict, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
-from pdf_worksheet_organizer.numbered_question_finder import parse_numbered_pdf
+from pdf_worksheet_organizer.questions import parse_numbered_pdf
 from pdf_worksheet_organizer.paths import PDF_PATH
 from pdf_worksheet_organizer.renumber import renumber_pdf
 
