@@ -5,10 +5,11 @@ from dataclasses import dataclass
 import typing as t
 
 import pikepdf
+import fitz as pymupdf
+from PIL import ImageFont
 
 if t.TYPE_CHECKING:
     import io
-    import fitz as pymupdf
     from PIL import Image
 
 # https://pymupdf.readthedocs.io/en/latest/page.html#Page.get_image_info
@@ -71,7 +72,7 @@ class MuTextDict(t.TypedDict):
 
 PdfText: t.TypeAlias = "list[PdfWord]"
 PdfImages: t.TypeAlias = "list[PdfImage]"
-FontBuffers: t.TypeAlias = "dict[str, io.BytesIO | None]"
+
 
 # output of pytesseract.image_to_data w/ output_type = Output.DICT
 # all parallel lists
@@ -88,6 +89,42 @@ class OcrImageData(t.TypedDict):
     height: list[int]
     conf: list[int]  # [0-100]
     text: list[str]
+
+
+class PdfFont(t.NamedTuple):
+    name: str
+    encoding: str
+    buffer: io.BytesIO
+
+    def as_pil_font(self, font_size: int) -> ImageFont.FreeTypeFont | None:
+        # true type font encodings:
+        # * "unic" (Unicode)
+        # * "symb" (Microsoft Symbol)
+        # * "ADOB" (Adobe Standard)
+        # * "ADBE" (Adobe Expert)
+        # * "ADBC" (Adobe Custom)
+        # * "armn" (Apple Roman)
+        # * "sjis" (Shift JIS)
+        # * "gb  " (PRC)
+        # * "big5"
+        # * "wans" (Extended Wansung)
+        # * "joha" (Johab)
+        # * "lat1" (Latin-1)
+
+        font_encoding: str
+        if self.encoding == "WinAnsiEncoding":
+            font_encoding = "lat1"
+        elif self.encoding == "MacRomanEncoding":
+            font_encoding = "armn"
+        else:
+            font_encoding = self.encoding
+        try:
+            return ImageFont.truetype(font=self.buffer.getvalue(), size=font_size, encoding=font_encoding)
+        except UnicodeDecodeError: 
+            return None
+
+    def as_pymupdf_font(self) -> pymupdf.Font:
+        return pymupdf.Font(fontname=self.name, fontbuffer=self.buffer.getvalue())
 
 
 @dataclass(frozen=True)

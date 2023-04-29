@@ -112,7 +112,6 @@ def parse_pdf(pike_pdf: pikepdf.Pdf, mu_pdf: pymupdf.Document) -> PdfFile:
     for page_num in range(page_count):
         page = parse_page(page_num, pike_pdf, mu_pdf)
         pages.append(page)
-        break
 
     pdf_file = PdfFile(pages=pages)
     return pdf_file

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import contextlib
 import io
 import os
 import typing as t
@@ -7,8 +10,8 @@ import pikepdf
 import fitz as pymupdf
 
 from datatypes import (
-    FontBuffers,
     PdfFile,
+    PdfFont,
     PdfNumberedFile,
     PdfNumberedWord,
     PdfNumberedImage,
@@ -28,8 +31,7 @@ def renumber_pdf(
     pdf_file: PdfFile,
     numbered_pdf_file: PdfNumberedFile,
 ) -> None:
-    font_buffers = parse_font_buffers(pike_pdf)
-    font_buffer = first_font_buffer(font_buffers)
+    fonts = parse_pdf_fonts(mu_pdf)
 
     question_number = 1
     page_count = len(pdf_file.pages)
@@ -47,11 +49,11 @@ def renumber_pdf(
 
             if isinstance(element, PdfNumberedWord):
                 mu_page: pymupdf.Page = new_mu_pdf.load_page(page_num)
-                renumber_text_element(question_number, font_buffers, mu_page, element)
+                renumber_text_element(question_number, fonts, mu_page, element)
                 last_type = PdfNumberedWord
             else:  # if isinstance(element, PdfNumberedImage):
                 pike_page = new_pike_pdf.pages[page_num]
-                renumber_image_element(question_number, font_buffer, pike_page, element)
+                renumber_image_element(question_number, fonts, pike_page, element)
                 last_type = PdfNumberedImage
 
             new_pike_pdf, new_mu_pdf = merge_pdfs(new_pike_pdf, new_mu_pdf, last_type)
@@ -83,50 +85,61 @@ def merge_pdfs(
     return new_pike_pdf, new_mu_pdf
 
 
-def parse_font_buffers(pike_pdf: pikepdf.Pdf) -> FontBuffers:
-    font_buffers: FontBuffers = {}
-    fonts_values: list[pikepdf.Dictionary] = []
+def parse_pdf_fonts(mu_pdf: pymupdf.Document) -> list[PdfFont]:
+    mu_page: pymupdf.Page = mu_pdf.load_page(0)
 
-    for page in pike_pdf.pages:
-        fonts = page.resources["/Font"]
-        values: t.Generator[pikepdf.Dictionary, None, None] = (v for _, v in fonts.items())  # type: ignore
-        fonts_values.extend(values)
+    # https://pymupdf.readthedocs.io/en/latest/document.html#Document.extract_font
+    # xref (int) is the font object number (may be zero if the PDF uses one of the builtin fonts directly)
+    # ext (str) font file extension (e.g. “ttf”, see Font File Extensions)
+    # type (str) is the font type (like “Type1” or “TrueType” etc.)
+    # basefont (str) is the base font name,
+    # name (str) is the symbolic name, by which the font is referenced
+    # encoding (str) the font’s character encoding if different from its built-in encoding (Adobe PDF References, p. 254):
+    # referencer
+    mu_fonts: list[tuple[int, str, str, str, str, str, int]] = mu_page.get_fonts(full=True)
+    pdf_fonts: list[PdfFont] = []
 
-    for font in fonts_values:
-        descriptor = font["/FontDescriptor"]
-        font_name = str(descriptor["/FontName"])
+    for mu_font in mu_fonts:
+        xref = mu_font[0]
+        # (basename, ext, type, content)
+        mu_font_info: tuple[str, str, str, bytes] = mu_pdf.extract_font(xref=xref)
+        raw_bytes = mu_font_info[3]
 
-        if font_name in font_buffers:
+        # TODO: revisit this
+        # the problem here stems from the fact that if a font doesn't have a buffer with it
+        # then is it is annoying to work with
+        # for example, 'Times New Roman' won't have a buffer and its
+        # file is called 'times.ttf' so it's not super intuitive to find
+        if not raw_bytes:
             continue
 
-        font_buffer: io.BytesIO | None
-        try:
-            font_stream: pikepdf.Stream = descriptor["/FontFile2"]  # type: ignore
-        except KeyError:
-            # font doesn't need to be loaded, just referenced by name.
-            # (must already be in system, on pdf or something im not exactly sure what the params are for this)
-            font_buffer = None
-        else:
-            font_buffer = io.BytesIO(font_stream.get_stream_buffer())  # type: ignore
+        name = mu_font[3]
+        encoding = mu_font[5]
+        buffer = io.BytesIO(raw_bytes)
 
-        font_buffers[font_name] = font_buffer
+        pdf_font = PdfFont(
+            name=name,
+            encoding=encoding,
+            buffer=buffer,
+        )
 
-    return font_buffers
+        pdf_fonts.append(pdf_font)
+
+    return pdf_fonts
 
 
 def renumber_text_element(
     question_number: int,
-    font_buffers: FontBuffers,
+    fonts: list[PdfFont],
     mu_page: pymupdf.Page,
     numbered_pdf_word: PdfNumberedWord,
 ) -> int:
     text_writer = pymupdf.TextWriter(mu_page.rect)
 
-    font = parse_font_from_font_buffer(numbered_pdf_word.font, font_buffers)
+    font = parse_font_from_fonts(numbered_pdf_word.font, fonts)
     text = QUESTION_NUMBER_FORMAT.format(question_number)
 
     mu_page.add_redact_annot(quad=numbered_pdf_word.bounding_box)
-    # calling this function standardizes the images to be in the format "/Im1", "/Im2", etc.
     mu_page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_NONE)  # type: ignore
 
     text_writer.append(text=text, font=font, fontsize=round(numbered_pdf_word.font_size), pos=numbered_pdf_word.origin)
@@ -140,7 +153,7 @@ def renumber_text_element(
 
 def renumber_image_element(
     question_number: int,
-    font_buffer: io.BytesIO | None,
+    fonts: list[PdfFont],
     pike_page: pikepdf.Page,
     numbered_pdf_image: PdfNumberedImage,
 ) -> None:
@@ -150,30 +163,35 @@ def renumber_image_element(
     pil_image = numbered_pdf_image.as_pil_image()
     # very top left pixel should be the proper background color in most scenarios
     # this can be changed to a different (more expensive) computation if need be.
+
+    font_size = round((number_bbox.y1 - number_bbox.y0) * (3 / 2))
+    pil_font: ImageFont._Font | None = None
+    for font in fonts:
+        pil_font = font.as_pil_font(font_size)
+        if pil_font:
+            break
+    if not pil_font:
+        pil_font = load_backup_font(font_size)
+
+    xy: tuple[float, float] = tuple(number_bbox.top_left)  # type: ignore
+    text = QUESTION_NUMBER_FORMAT.format(question_number)
+
     background_color = pil_image.getpixel((0, 0))
 
     draw = ImageDraw.Draw(pil_image)
     draw.rectangle(number_bbox_as_tuple, fill=background_color)
-
-    font_size = round((number_bbox.y1 - number_bbox.y0) * (3 / 2))
-    # TODO: maybe include encoding= param here which can be gotten from font data w/ pikepdf
-    font = ImageFont.truetype(font=font_buffer, size=font_size)
-    xy: tuple[float, float] = tuple(number_bbox.top_left)  # type: ignore
-    text = QUESTION_NUMBER_FORMAT.format(question_number)
-
-    draw.text(xy, text=text, font=font, fill=(0, 0, 0))
+    draw.text(xy, text=text, font=pil_font, fill=(0, 0, 0))
 
     raw_image = pil_image.tobytes()
 
-    possible_keys = (f"/Image{numbered_pdf_image.id}", f"/Im{numbered_pdf_image.id}")
+    image_id = numbered_pdf_image.id
+    str_image_id = str(image_id)
+    keys = [k for k in pike_page.images.keys() if str_image_id in k]
 
-    for key in possible_keys:
-        if key in pike_page.images:
-            break
-    else:
+    if not keys:
         raise ValueError(f"Could not find image with id {numbered_pdf_image.id}")
 
-    pike_page.images[key].write(raw_image)
+    pike_page.images[keys[0]].write(raw_image)
 
 
 def load_page(
@@ -187,21 +205,22 @@ def load_page(
     return (mu_page, numbered_pdf_page)
 
 
-def first_font_buffer(font_buffers: FontBuffers) -> io.BytesIO | None:
-    for font_buffer in font_buffers.values():
-        if font_buffer:
-            return font_buffer
+def parse_font_from_fonts(font_name: str, fonts: list[PdfFont]) -> pymupdf.Font | None:
+    for font in fonts:
+        if font_name in font.name:
+            return font.as_pymupdf_font()
     return None
 
 
-def parse_font_from_font_buffer(font_name: str, font_buffers: FontBuffers) -> pymupdf.Font:
-    font_buffer: io.BytesIO | None
+def load_backup_font(font_size: int) -> ImageFont._Font:
+    attempt_to_load_fonts = [
+        "Proxima Nova Font.otf",  # biased choice :)
+        "arial.ttf",
+        "times.ttf",
+    ]
 
-    for font_buffer_name, font_buffer_option in font_buffers.items():
-        if font_name in font_buffer_name:
-            font_buffer = font_buffer_option
-            break
-    else:
-        font_buffer = first_font_buffer(font_buffers)
+    for font_name in attempt_to_load_fonts:
+        with contextlib.suppress(OSError):
+            return ImageFont.truetype(font=font_name, size=font_size)
 
-    return pymupdf.Font(fontname=font_name, fontbuffer=font_buffer)
+    return ImageFont.load_default()
