@@ -15,3 +15,7 @@
 ```python
 python -m pdf_worksheet_organizer [INPUT] [OUTPUT]
 ```
+
+## Demo
+
+![Demo](./.github/assets/demo.gif)
