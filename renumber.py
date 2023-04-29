@@ -5,8 +5,18 @@ import rich
 import pikepdf
 import fitz as pymupdf
 
-from datatypes import FontBuffers, PdfFile, PdfNumberedFile, PdfNumberedWord, PdfPage, PdfNumberedPage
+from datatypes import (
+    FontBuffers,
+    PdfFile,
+    PdfNumberedFile,
+    PdfNumberedWord,
+    PdfNumberedImage,
+    PdfPage,
+    PdfNumberedPage,
+)
 from paths import OUT_DIR
+
+from PIL import ImageDraw, ImageFont
 
 QUESTION_NUMBER_FORMAT = "{0})"
 
@@ -26,7 +36,8 @@ def renumber_pdf(
             page_num, question_number, font_buffers, pike_pdf, mu_pdf, pdf_file, numbered_pdf_file
         )
 
-    mu_pdf.save(OUT_DIR / "replaced.pdf", garbage=3, deflate=True)
+    mu_pdf.save(OUT_DIR / "replaced1.pdf", garbage=3, deflate=True)
+    pike_pdf.save(OUT_DIR / "replaced2.pdf")
 
 
 def parse_font_buffers(pike_pdf: pikepdf.Pdf) -> FontBuffers:
@@ -74,6 +85,7 @@ def parse_page(
     )
 
     question_number = renumber_text_elements(question_number, font_buffers, mu_page, numbered_pdf_page)
+    question_number = renumber_image_elements(question_number, font_buffers, pike_page, numbered_pdf_page)
     rich.print(question_number)
 
     return question_number
@@ -106,6 +118,44 @@ def renumber_text_elements(
     return question_number
 
 
+def renumber_image_elements(
+    question_number: int,
+    font_buffers: FontBuffers,
+    pike_page: pikepdf.Page,
+    numbered_pdf_page: PdfNumberedPage,
+) -> int:
+    for image in numbered_pdf_page.elements:
+        if not isinstance(image, PdfNumberedImage):
+            continue
+
+        number_bbox = image.number_bounding_box
+        number_bbox_as_tuple: tuple[float, float, float, float] = tuple(number_bbox)  # type: ignore
+
+        pil_image = image.as_pil_image()
+        # very top left pixel should be the proper background color in most scenarios
+        # this can be changed to a different (more expensive) computation if need be.
+        background_color = pil_image.getpixel((0, 0))
+
+        draw = ImageDraw.Draw(pil_image)
+        draw.rectangle(number_bbox_as_tuple, fill=background_color)
+
+        font_size = round((number_bbox.y1 - number_bbox.y0) * (3 / 2))
+        font_buffer = first_font_buffer(font_buffers)
+        # TODO: maybe include encoding= param here which can be gotten from font data w/ pikepdf
+        font = ImageFont.truetype(font=font_buffer, size=font_size)
+        xy: tuple[float, float] = tuple(number_bbox.top_left)  # type: ignore
+        text = QUESTION_NUMBER_FORMAT.format(question_number)
+
+        draw.text(xy, text=text, font=font, fill=(0, 0, 0))
+
+        raw_image = pil_image.tobytes()
+        image.stream.write(raw_image)
+
+        question_number += 1
+
+    return question_number
+
+
 def load_page(
     page_num: int,
     pike_pdf: pikepdf.Pdf,
@@ -121,6 +171,13 @@ def load_page(
     return (pike_page, mu_page, pdf_page, numbered_pdf_page)
 
 
+def first_font_buffer(font_buffers: FontBuffers) -> io.BytesIO | None:
+    for font_buffer in font_buffers.values():
+        if font_buffer:
+            return font_buffer
+    return None
+
+
 def parse_font_from_font_buffer(font_name: str, font_buffers: FontBuffers) -> pymupdf.Font:
     font_buffer: io.BytesIO | None
 
@@ -129,7 +186,6 @@ def parse_font_from_font_buffer(font_name: str, font_buffers: FontBuffers) -> py
             font_buffer = font_buffer_option
             break
     else:
-        key = list(font_buffers.keys())[0]
-        font_buffer = font_buffers[key]
+        font_buffer = first_font_buffer(font_buffers)
 
     return pymupdf.Font(fontname=font_name, fontbuffer=font_buffer)

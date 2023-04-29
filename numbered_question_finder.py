@@ -106,7 +106,7 @@ def filter_numbered_images(images: PdfImages) -> list[PdfNumberedImage]:
             right = image_data["width"][index] + left
             bottom = image_data["height"][index] + top
 
-            number_bbox = pymupdf.IRect(left, top, right, bottom)
+            number_bbox = pymupdf.Rect(left, top, right, bottom)
             new_image = PdfNumberedImage(
                 id=image.id,
                 stream=image.stream,

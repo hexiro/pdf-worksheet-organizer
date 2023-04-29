@@ -129,7 +129,7 @@ class PdfFile(t.NamedTuple):
 @dataclass(frozen=True)
 class PdfNumberedImage(PdfImage):
     word: str
-    number_bounding_box: pymupdf.IRect
+    number_bounding_box: pymupdf.Rect
 
 
 # just to differentiable the two
