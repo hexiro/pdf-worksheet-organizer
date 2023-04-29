@@ -1,8 +1,11 @@
+import io
+import os
 import pathlib
 import pikepdf
 import fitz as pymupdf
 
 from PIL import Image, ImageDraw
+import rich
 
 from paths import OUT_DIR, PDF_PATH
 
@@ -81,8 +84,32 @@ def extract_images(page: pikepdf.Page) -> None:
         pil_image.save(OUT_DIR / f"{image_name}.png")
 
 
-if __name__ == "__main__":
-    pdf = pikepdf.open(PDF_PATH)
-    page_one = pdf.pages[0]
+def test_open_with_pike_pdf() -> None:
+    globs = [
+        "replaced*.pdf",
+        "replaced-mu-*.pdf",
+        "replaced-pike-*.pdf",
+    ]
 
-    extract_images(page_one)
+    pdf_files = [path for glob in globs for path in OUT_DIR.glob(glob)]
+
+    for pdf_file in pdf_files:
+        mu_pdf: pymupdf.Document = pymupdf.Document(pdf_file)
+        page: pymupdf.Page = mu_pdf.load_page(0)
+
+        rich.print(pdf_file.name)
+        rich.print(page.get_images(full=True))
+        rich.print("-" * 80)
+
+    for pdf_file in pdf_files:
+        pike_pdf = pikepdf.open(pdf_file)
+        images = pike_pdf.pages[0].images
+
+        rich.print(pdf_file.name)
+        rich.print(dict(images))
+        rich.print("-" * 80)
+
+
+if __name__ == "__main__":
+    pike_pdf = pikepdf.open(PDF_PATH)
+    mu_pdf = pymupdf.Document(PDF_PATH)

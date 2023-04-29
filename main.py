@@ -1,6 +1,5 @@
+import io
 import pathlib
-
-import typing as t
 
 import pikepdf
 import fitz as pymupdf
@@ -13,7 +12,8 @@ from renumber import renumber_pdf
 
 def image_name_as_int(image_name: str) -> int:
     image_name = image_name.removeprefix("/")
-    image_name = image_name.removeprefix("Image")
+    image_name = image_name.removeprefix("Im")
+    image_name = image_name.removeprefix("age")
     if not image_name.isdigit():
         raise ValueError(f"Image name {image_name} is not a digit")
     return int(image_name)
@@ -29,7 +29,6 @@ def parse_pdf_text(mu_page: pymupdf.Page) -> PdfText:
         block_num = block["number"]
         for line_num, line in enumerate(block["lines"]):
             for word_num, word in enumerate(line["spans"]):
-
                 text = word["text"].strip()
 
                 # text is probably just a space that got stripped out
@@ -75,13 +74,12 @@ def parse_pdf_images(
 ) -> list[PdfImage]:
     pdf_images: list[PdfImage] = []
 
-    for mu_image in mu_images:
-        image_id = mu_image["xref"]
+    for pike_image_id, mu_image in enumerate(mu_images, start=1):
         image_dimensions = mu_image["bbox"]
-        image_stream = pike_images[image_id]
+        image_stream = pike_images[pike_image_id]
 
         pdf_image = PdfImage(
-            id=image_id,
+            id=pike_image_id,
             stream=image_stream,
             bounding_box=pymupdf.Rect(image_dimensions),
         )
@@ -121,14 +119,34 @@ def parse_pdf(pike_pdf: pikepdf.Pdf, mu_pdf: pymupdf.Document) -> PdfFile:
 
 
 def main(pdf_path: pathlib.Path) -> None:
-    pike_pdf = pikepdf.open(pdf_path)
-    mu_pdf = pymupdf.Document(pdf_path)
+    pike_pdf, mu_pdf = standardize_pdf(pdf_path)
 
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
     numbered_pdf_file = parse_numbered_pdf(pdf_file)
 
     # rich.print(numbered_pdf_file)
     renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file)
+
+
+def standardize_pdf(pdf_path: pathlib.Path) -> tuple[pikepdf.Pdf, pymupdf.Document]:
+    mu_pdf = pymupdf.Document(pdf_path)
+
+    # the apply redactions function has the (undocumented) side effect of
+    # reordering all images from their original ids to 1, 2, 3, etc.
+    # this can become a problem when the pdf is parsed first and then the ids are changed,
+    # so it's better to prevent the problem by standardizing the pdf first
+
+    mu_page: pymupdf.Page
+    for mu_page in mu_pdf.pages():
+        mu_page.add_redact_annot(quad=pymupdf.Rect(0, 0, 0, 0))
+        mu_page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_NONE)  # type: ignore
+
+    pdf_bytes_io = io.BytesIO()
+    mu_pdf.save(pdf_bytes_io)
+
+    pike_pdf = pikepdf.open(pdf_bytes_io)
+
+    return pike_pdf, mu_pdf
 
 
 if __name__ == "__main__":
