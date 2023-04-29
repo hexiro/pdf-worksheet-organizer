@@ -179,3 +179,7 @@ class PdfNumberedPage(t.NamedTuple):
 
 class PdfNumberedFile(t.NamedTuple):
     pages: list[PdfNumberedPage]
+
+    @property
+    def questions_count(self) -> int:
+        return sum(len(page.elements) for page in self.pages)

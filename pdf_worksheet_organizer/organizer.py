@@ -6,7 +6,6 @@ import fitz as pymupdf
 
 from pdf_worksheet_organizer.datatypes import MuTextDict, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
 from pdf_worksheet_organizer.questions import parse_numbered_pdf
-from pdf_worksheet_organizer.paths import PDF_PATH
 from pdf_worksheet_organizer.renumber import renumber_pdf
 
 
@@ -111,14 +110,14 @@ def parse_pdf(pike_pdf: pikepdf.Pdf, mu_pdf: pymupdf.Document) -> PdfFile:
     return pdf_file
 
 
-def main(pdf_path: pathlib.Path) -> None:
+def reorganize(pdf_path: pathlib.Path) -> tuple[pymupdf.Document, int]:
     pike_pdf, mu_pdf = standardize_pdf(pdf_path)
 
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
     numbered_pdf_file = parse_numbered_pdf(pdf_file)
 
-    # rich.print(numbered_pdf_file)
-    renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file)
+    renumbered_pdf = renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file)
+    return renumbered_pdf, numbered_pdf_file.questions_count
 
 
 def standardize_pdf(pdf_path: pathlib.Path) -> tuple[pikepdf.Pdf, pymupdf.Document]:
@@ -140,7 +139,3 @@ def standardize_pdf(pdf_path: pathlib.Path) -> tuple[pikepdf.Pdf, pymupdf.Docume
     pike_pdf = pikepdf.open(pdf_bytes_io)
 
     return pike_pdf, mu_pdf
-
-
-if __name__ == "__main__":
-    main(PDF_PATH)
