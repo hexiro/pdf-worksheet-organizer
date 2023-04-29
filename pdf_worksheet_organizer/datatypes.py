@@ -1,9 +1,9 @@
 from __future__ import annotations
-from dataclasses import dataclass
+
 import re
-
-
 import typing as t
+from dataclasses import dataclass
+
 
 import pikepdf
 import fitz as pymupdf

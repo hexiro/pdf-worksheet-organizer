@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import contextlib
 import io
-import os
 import typing as t
+import contextlib
 
-import rich
 import pikepdf
 import fitz as pymupdf
+from PIL import ImageDraw, ImageFont
 
-from datatypes import (
+from pdf_worksheet_organizer.datatypes import (
     PdfFile,
     PdfFont,
     PdfNumberedFile,
@@ -18,9 +17,8 @@ from datatypes import (
     PdfPage,
     PdfNumberedPage,
 )
-from paths import OUT_DIR
+from pdf_worksheet_organizer.paths import OUT_DIR
 
-from PIL import ImageDraw, ImageFont, Image
 
 QUESTION_NUMBER_FORMAT = "{0})"
 
@@ -137,7 +135,7 @@ def renumber_text_element(
     text_writer = pymupdf.TextWriter(mu_page.rect)
 
     font = parse_font_from_fonts(numbered_pdf_word.font, fonts)
-    
+
     match = numbered_pdf_word.match
     question_number_text = QUESTION_NUMBER_FORMAT.format(question_number)
     text = match.string.replace(match.group(), question_number_text)

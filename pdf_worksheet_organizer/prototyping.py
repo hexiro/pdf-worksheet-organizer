@@ -1,13 +1,10 @@
-import io
-import os
-import pathlib
 import pikepdf
 import fitz as pymupdf
 
 from PIL import Image, ImageDraw
 import rich
 
-from paths import OUT_DIR, PDF_PATH
+from pdf_worksheet_organizer.paths import OUT_DIR, PDF_PATH
 
 
 def prove_editing_pdf_images_works(

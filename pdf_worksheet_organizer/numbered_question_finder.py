@@ -5,11 +5,10 @@ import operator
 import typing as t
 
 import fitz as pymupdf
-import rich
 
 
-import ocr
-from datatypes import PdfNumberedFile, PdfNumberedPage, PdfNumberedImage, PdfNumberedWord
+from pdf_worksheet_organizer import ocr
+from pdf_worksheet_organizer.datatypes import PdfNumberedFile, PdfNumberedPage, PdfNumberedImage, PdfNumberedWord
 
 
 if t.TYPE_CHECKING:
