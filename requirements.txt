@@ -1,0 +1,6 @@
+Pillow
+PyMuPDF
+pikepdf
+pytesseract
+rich
+rich_click
