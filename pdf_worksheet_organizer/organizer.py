@@ -4,9 +4,10 @@ import pathlib
 import pikepdf
 import fitz as pymupdf
 
-from pdf_worksheet_organizer.datatypes import MuTextDict, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
+from pdf_worksheet_organizer.datatypes import MuTextDict, PdfFont, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
 from pdf_worksheet_organizer.questions import parse_numbered_pdf
 from pdf_worksheet_organizer.renumber import renumber_pdf
+from pdf_worksheet_organizer.legend import add_legend
 
 
 def image_name_as_int(image_name: str) -> int:
@@ -116,8 +117,11 @@ def reorganize(pdf_path: pathlib.Path) -> tuple[pymupdf.Document, int]:
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
     numbered_pdf_file = parse_numbered_pdf(pdf_file)
 
-    renumbered_pdf = renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file)
-    return renumbered_pdf, numbered_pdf_file.questions_count
+    fonts = parse_pdf_fonts(mu_pdf)
+    renumbered_pdf = renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file, fonts)
+    final_pdf = add_legend(renumbered_pdf, pdf_file, numbered_pdf_file)
+
+    return final_pdf, numbered_pdf_file.questions_count
 
 
 def standardize_pdf(pdf_path: pathlib.Path) -> tuple[pikepdf.Pdf, pymupdf.Document]:
@@ -139,3 +143,53 @@ def standardize_pdf(pdf_path: pathlib.Path) -> tuple[pikepdf.Pdf, pymupdf.Docume
     pike_pdf = pikepdf.open(pdf_bytes_io)
 
     return pike_pdf, mu_pdf
+
+
+def parse_pdf_fonts(mu_pdf: pymupdf.Document) -> list[PdfFont]:
+    mu_page: pymupdf.Page = mu_pdf.load_page(0)
+
+    # https://pymupdf.readthedocs.io/en/latest/document.html#Document.extract_font
+    # xref (int) is the font object number (may be zero if the PDF uses one of the builtin fonts directly)
+    # ext (str) font file extension (e.g. “ttf”, see Font File Extensions)
+    # type (str) is the font type (like “Type1” or “TrueType” etc.)
+    # basefont (str) is the base font name,
+    # name (str) is the symbolic name, by which the font is referenced
+    # encoding (str) the font’s character encoding if different from its built-in encoding (Adobe PDF References, p. 254):
+    # referencer
+    mu_fonts: list[tuple[int, str, str, str, str, str, int]] = mu_page.get_fonts(full=True)
+    pdf_fonts: list[PdfFont] = []
+
+    for mu_font in mu_fonts:
+        xref = mu_font[0]
+        # (basename, ext, type, content)
+        mu_font_info: tuple[str, str, str, bytes] = mu_pdf.extract_font(xref=xref)
+        raw_bytes = mu_font_info[3]
+
+        # TODO: revisit this
+        # the problem here stems from the fact that if a font doesn't have a buffer with it
+        # then is it is annoying to work with
+        # for example, 'Times New Roman' won't have a buffer and its
+        # file is called 'times.ttf' so it's not super intuitive to find
+        if not raw_bytes:
+            continue
+
+        name = mu_font[3]
+        encoding = mu_font[5]
+        buffer = io.BytesIO(raw_bytes)
+
+        pdf_font = PdfFont(
+            name=name,
+            encoding=encoding,
+            buffer=buffer,
+        )
+
+        pdf_fonts.append(pdf_font)
+
+    return pdf_fonts
+
+
+
+if __name__ == "__main__":
+    pdf_path = pathlib.Path("in/11b Summative Unit 3.pdf").resolve()
+
+    reorganize(pdf_path)

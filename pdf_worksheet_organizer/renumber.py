@@ -7,7 +7,6 @@ import contextlib
 import pikepdf
 import fitz as pymupdf
 from PIL import ImageDraw, ImageFont
-import rich
 
 from pdf_worksheet_organizer.datatypes import (
     PdfFile,
@@ -15,9 +14,9 @@ from pdf_worksheet_organizer.datatypes import (
     PdfNumberedFile,
     PdfNumberedWord,
     PdfNumberedImage,
-    PdfPage,
     PdfNumberedPage,
 )
+from pdf_worksheet_organizer.parsing import fonts_pil_font
 
 
 QUESTION_NUMBER_FORMAT = "{0})"
@@ -28,9 +27,8 @@ def renumber_pdf(
     mu_pdf: pymupdf.Document,
     pdf_file: PdfFile,
     numbered_pdf_file: PdfNumberedFile,
+    fonts: list[PdfFont],
 ) -> pymupdf.Document:
-    fonts = parse_pdf_fonts(mu_pdf)
-
     question_number = 1
     page_count = len(pdf_file.pages)
 
@@ -42,9 +40,6 @@ def renumber_pdf(
         numbered_pdf_page = numbered_pdf_file.pages[page_num]
 
         for element in numbered_pdf_page.elements:
-            # rich.print(question_number)
-            # rich.print(dict(new_pike_pdf.pages[0].images))
-
             if isinstance(element, PdfNumberedWord):
                 mu_page: pymupdf.Page = new_mu_pdf.load_page(page_num)
                 renumber_text_element(question_number, fonts, mu_page, element)
@@ -80,49 +75,6 @@ def merge_pdfs(
         new_mu_pdf = pymupdf.Document(stream=pdf_bytes_io)
 
     return new_pike_pdf, new_mu_pdf
-
-
-def parse_pdf_fonts(mu_pdf: pymupdf.Document) -> list[PdfFont]:
-    mu_page: pymupdf.Page = mu_pdf.load_page(0)
-
-    # https://pymupdf.readthedocs.io/en/latest/document.html#Document.extract_font
-    # xref (int) is the font object number (may be zero if the PDF uses one of the builtin fonts directly)
-    # ext (str) font file extension (e.g. “ttf”, see Font File Extensions)
-    # type (str) is the font type (like “Type1” or “TrueType” etc.)
-    # basefont (str) is the base font name,
-    # name (str) is the symbolic name, by which the font is referenced
-    # encoding (str) the font’s character encoding if different from its built-in encoding (Adobe PDF References, p. 254):
-    # referencer
-    mu_fonts: list[tuple[int, str, str, str, str, str, int]] = mu_page.get_fonts(full=True)
-    pdf_fonts: list[PdfFont] = []
-
-    for mu_font in mu_fonts:
-        xref = mu_font[0]
-        # (basename, ext, type, content)
-        mu_font_info: tuple[str, str, str, bytes] = mu_pdf.extract_font(xref=xref)
-        raw_bytes = mu_font_info[3]
-
-        # TODO: revisit this
-        # the problem here stems from the fact that if a font doesn't have a buffer with it
-        # then is it is annoying to work with
-        # for example, 'Times New Roman' won't have a buffer and its
-        # file is called 'times.ttf' so it's not super intuitive to find
-        if not raw_bytes:
-            continue
-
-        name = mu_font[3]
-        encoding = mu_font[5]
-        buffer = io.BytesIO(raw_bytes)
-
-        pdf_font = PdfFont(
-            name=name,
-            encoding=encoding,
-            buffer=buffer,
-        )
-
-        pdf_fonts.append(pdf_font)
-
-    return pdf_fonts
 
 
 def renumber_text_element(
@@ -165,13 +117,7 @@ def renumber_image_element(
     # this can be changed to a different (more expensive) computation if need be.
 
     font_size = round((number_bbox.y1 - number_bbox.y0) * (3 / 2))
-    pil_font: ImageFont._Font | None = None
-    for font in fonts:
-        pil_font = font.as_pil_font(font_size)
-        if pil_font:
-            break
-    if not pil_font:
-        pil_font = load_backup_font(font_size)
+    pil_font = fonts_pil_font(fonts, font_size)
 
     xy: tuple[float, float] = tuple(number_bbox.top_left)  # type: ignore
     text = QUESTION_NUMBER_FORMAT.format(question_number)

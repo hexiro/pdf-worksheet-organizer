@@ -166,10 +166,18 @@ class PdfNumberedImage(PdfImage):
     word: str
     number_bounding_box: pymupdf.Rect
 
+    @property
+    def number(self) -> int:
+        return int(self.word[:-1])
+
 
 @dataclass(frozen=True)
 class PdfNumberedWord(PdfWord):
     match: re.Match[str]
+
+    @property
+    def number(self) -> int:
+        return int(self.match.group(0)[:-1])
 
 
 # bounding_box in PdfImage now refers to the bounding box of the number instead of the whole image
