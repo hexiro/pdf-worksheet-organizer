@@ -152,9 +152,11 @@ class PdfPage(t.NamedTuple):
     images: PdfImages
 
     @property
-    def image_streams(self) -> t.Generator[pikepdf.Stream, None, None]:
-        for image in self.images:
-            yield image.stream
+    def elements(self) -> t.Generator[PdfWord | PdfImage, None, None]:
+        yield from self.text
+        yield from self.images
+
+    
 
 
 class PdfFile(t.NamedTuple):
@@ -191,3 +193,17 @@ class PdfNumberedFile(t.NamedTuple):
     @property
     def questions_count(self) -> int:
         return sum(len(page.elements) for page in self.pages)
+
+class Padding(t.NamedTuple):
+    left: int
+    top: int
+    right: int
+    bottom: int
+
+    @property
+    def horizontal(self) -> int:
+        return self.left + self.right
+
+    @property
+    def vertical(self) -> int:
+        return self.top + self.bottom

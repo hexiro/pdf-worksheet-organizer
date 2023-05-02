@@ -9,7 +9,8 @@ from pdf_worksheet_organizer import organizer
 @click.command()
 @click.argument("input", type=click.Path(exists=True))
 @click.argument("output", type=click.Path())
-def organize(input: str, output: str) -> None:
+@click.option("-l", "--legend", is_flag=True, default=False, help="Add a legend of the renumbering")
+def organize(input: str, output: str, legend: bool) -> None:
     input_path = pathlib.Path(input).resolve()
     output_path = pathlib.Path(output).resolve()
 
@@ -22,7 +23,7 @@ def organize(input: str, output: str) -> None:
         new_name = f"{input_path.stem}-replaced.pdf".replace(" ", "-")
         output_path = output_path / new_name
 
-    new_pdf, questions_count = organizer.reorganize(input_path)
+    new_pdf, questions_count = organizer.reorganize(input_path, add_legend=legend)
     new_pdf.save(output_path, garbage=3, deflate=True)
 
     relative_output_path = output_path.relative_to(pathlib.Path.cwd())

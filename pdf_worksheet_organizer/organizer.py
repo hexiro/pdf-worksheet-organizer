@@ -4,10 +4,17 @@ import pathlib
 import pikepdf
 import fitz as pymupdf
 
-from pdf_worksheet_organizer.datatypes import MuTextDict, PdfFont, PdfImage, PdfPage, PdfFile, PdfWord, PdfText, MuImage
-from pdf_worksheet_organizer.questions import parse_numbered_pdf
-from pdf_worksheet_organizer.renumber import renumber_pdf
-from pdf_worksheet_organizer.legend import add_legend
+from pdf_worksheet_organizer.datatypes import (
+    MuTextDict,
+    PdfFont,
+    PdfImage,
+    PdfPage,
+    PdfFile,
+    PdfWord,
+    PdfText,
+    MuImage,
+)
+from pdf_worksheet_organizer import questions, renumber, legend
 
 
 def image_name_as_int(image_name: str) -> int:
@@ -111,15 +118,17 @@ def parse_pdf(pike_pdf: pikepdf.Pdf, mu_pdf: pymupdf.Document) -> PdfFile:
     return pdf_file
 
 
-def reorganize(pdf_path: pathlib.Path) -> tuple[pymupdf.Document, int]:
+def reorganize(pdf_path: pathlib.Path, add_legend: bool) -> tuple[pymupdf.Document, int]:
     pike_pdf, mu_pdf = standardize_pdf(pdf_path)
 
     pdf_file = parse_pdf(pike_pdf, mu_pdf)
-    numbered_pdf_file = parse_numbered_pdf(pdf_file)
+    numbered_pdf_file = questions.parse_numbered_pdf(pdf_file)
 
     fonts = parse_pdf_fonts(mu_pdf)
-    renumbered_pdf = renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file, fonts)
-    final_pdf = add_legend(renumbered_pdf, pdf_file, numbered_pdf_file)
+    final_pdf = renumber.renumber_pdf(pike_pdf, mu_pdf, pdf_file, numbered_pdf_file, fonts)
+
+    if add_legend:
+        final_pdf = legend.add_legend(final_pdf, pdf_file, numbered_pdf_file)
 
     return final_pdf, numbered_pdf_file.questions_count
 
@@ -186,10 +195,3 @@ def parse_pdf_fonts(mu_pdf: pymupdf.Document) -> list[PdfFont]:
         pdf_fonts.append(pdf_font)
 
     return pdf_fonts
-
-
-
-if __name__ == "__main__":
-    pdf_path = pathlib.Path("in/11b Summative Unit 3.pdf").resolve()
-
-    reorganize(pdf_path)
