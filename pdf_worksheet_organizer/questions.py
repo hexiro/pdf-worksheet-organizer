@@ -14,7 +14,7 @@ from pdf_worksheet_organizer.datatypes import PdfNumberedFile, PdfNumberedPage, 
 if t.TYPE_CHECKING:
     from datatypes import PdfFile, PdfPage, PdfText, PdfImages
 
-NUMBERED_QUESTION_TEXT_REGEX = re.compile(r"(\b\d+[.)])(?=\s|$)")
+NUMBERED_QUESTION_TEXT_REGEX = re.compile(r"(?:^| )(\d+[.)])(?=\s|$)")
 
 
 def parse_numbered_pdf(pdf_file: PdfFile) -> PdfNumberedFile:
