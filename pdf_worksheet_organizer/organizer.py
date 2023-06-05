@@ -136,10 +136,15 @@ def reorganize(pdf_path: pathlib.Path, add_legend: bool) -> tuple[pymupdf.Docume
 def standardize_pdf(pdf_path: pathlib.Path) -> tuple[pikepdf.Pdf, pymupdf.Document]:
     mu_pdf = pymupdf.Document(pdf_path)
 
-    # the apply redactions function has the (undocumented) side effect of
-    # reordering all images from their original ids to 1, 2, 3, etc.
-    # this can become a problem when the pdf is parsed first and then the ids are changed,
-    # so it's better to prevent the problem by standardizing the pdf first
+    # the `apply_redactions` function has the (undocumented) side effect of
+    # reordering all images from their original ids (which can be any number and in no specific order) 
+    # to an ordered 1, 2, 3, etc.
+
+    # this is a problem because each image's id is used to reference the image and is what allows us
+    # to modify each image. If these id's are changed, we can no longer reliably know which image is which.
+
+    # to avoid this, we allow this side effect to take place 
+    # before we parse the pdfs so the ids will remain consistent
 
     mu_page: pymupdf.Page
     for mu_page in mu_pdf.pages():
